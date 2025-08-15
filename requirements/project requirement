@@ -1,0 +1,35 @@
+# Hackathon 2.0 — System Requirements
+
+## Infrastructure
+- Toll-free number setup via BSNL
+- Backend server with:
+  - AI model hosting
+  - Call routing logic
+- Doctor dashboard (web/mobile) for Yellow/Red cases
+- Hospital integration:
+  - Emergency alert APIs
+  - Manual notification fallback
+
+## AI Components
+- Voice-to-text converter for symptom capture
+- Symptom severity classifier (Blue/Yellow/Red)
+- Image recognition model for skin diseases
+- Prescription slip summarizer
+- Multilingual NLP (Hindi, Pahadi, etc.)
+
+## Data & Training
+- Medical symptom datasets
+- Regional language datasets
+- Optional integration with prebuilt APIs
+
+## Additional Features (Optional)
+- Voice hygiene tips (dynamic caller tune)
+- SMS-based health alerts
+- Medication reminders (SMS/voice)
+- Patient feedback prompt (IVR)
+- Offline access for ASHA workers
+
+## Compliance & Risk Mitigation
+- Data privacy protocols (Indian IT & health laws)
+- Failover handling for toll-free and server downtime
+- Accent/language support for rural populations
