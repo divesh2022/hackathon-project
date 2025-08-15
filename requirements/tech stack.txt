@@ -1,0 +1,26 @@
+Tech Stack - Rural Health Helpline
+
+Backend:
+- Python (FastAPI) or Node.js (Express)
+- PostgreSQL (Normalized schema)
+- Twilio/BSNL for voice & SMS
+- AI: Symptom classifier, OCR, Image recognition, NLP
+
+Frontend:
+- React.js (Doctor/Admin dashboard)
+- Android (ASHA app, offline support)
+
+Infra:
+- AWS EC2 + S3 (Cloud hosting & storage)
+- JWT Auth
+- Monitoring: Grafana
+
+AI/NLP:
+- Whisper (voice-to-text)
+- IndicBERT (multilingual)
+- Tesseract (OCR)
+
+Security:
+- AES encryption
+- Role-based access
+- Compliance with Indian IT & Health Data laws
