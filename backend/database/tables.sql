@@ -10,15 +10,15 @@ CREATE TABLE Patient (
     gender VARCHAR(10),
     phone_patient VARCHAR(15),
     location VARCHAR(100),
-    urgency_level VARCHAR(10), -- Consider ENUM('Blue', 'Yellow', 'Red')
-    medical_history TEXT
+    urgency_level VARCHAR(10),
+    medical_history VARCHAR(MAX)
 );
 
 CREATE TABLE NaiveUser (
     user_id INT PRIMARY KEY,
     phone_naive VARCHAR(15),
     call_timestamp DATETIME,
-    symptoms TEXT
+    symptoms VARCHAR(MAX)
 );
 
 CREATE TABLE Caregiver (
@@ -110,4 +110,33 @@ CREATE TABLE DoctorPatientAssignment (
     PRIMARY KEY (doctor_id, patient_id),
     FOREIGN KEY (doctor_id) REFERENCES Doctor(doctor_id),
     FOREIGN KEY (patient_id) REFERENCES Patient(patient_id)
+);
+CREATE TABLE SMSNotification (
+    notification_id INT IDENTITY PRIMARY KEY,
+    recipient_phone VARCHAR(15),
+    message VARCHAR(255),
+    created_at DATETIME DEFAULT GETDATE()
+);
+
+CREATE TABLE Prescription (
+    prescription_id INT IDENTITY PRIMARY KEY,
+    patient_id INT,
+    summary VARCHAR(MAX),
+    created_at DATETIME DEFAULT GETDATE()
+);
+
+CREATE TABLE AuditLog (
+    log_id INT IDENTITY PRIMARY KEY,
+    patient_id INT,
+    old_level VARCHAR(10),
+    new_level VARCHAR(10),
+    created_at DATETIME DEFAULT GETDATE(),
+    reason VARCHAR(255)
+);
+
+CREATE TABLE Feedback (
+    feedback_id INT IDENTITY PRIMARY KEY,
+    patient_id INT,
+    rating INT,
+    created_at DATETIME DEFAULT GETDATE()
 );
