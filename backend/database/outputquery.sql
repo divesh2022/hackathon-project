@@ -17,3 +17,4 @@ SELECT * FROM SMSNotification;
 SELECT * FROM Prescription;
 SELECT * FROM AuditLog;
 SELECT * FROM Feedback;
+SELECT * FROM UserHealthSummary;
