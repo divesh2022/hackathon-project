@@ -1,0 +1,9 @@
+-- Create users for each role
+CREATE USER admin_user WITHOUT LOGIN;
+CREATE USER doctor_user WITHOUT LOGIN;
+CREATE USER asha_user WITHOUT LOGIN;
+CREATE USER patient_user WITHOUT LOGIN;
+CREATE USER operator_user WITHOUT LOGIN;
+CREATE USER staff_user WITHOUT LOGIN;
+CREATE USER caregiver_user WITHOUT LOGIN;
+CREATE USER naive_user WITHOUT LOGIN;
