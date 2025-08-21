@@ -1,72 +1,88 @@
-# auth_ashaworker.py
+# auth.py
 
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from typing import List, Dict, Any
 import api  # assumes api.connect_to_database() is defined
+from fastapi import FastAPI, HTTPException, Query
+from pydantic import BaseModel
+from auth_admin import router as admin_router
+from auth_patient import router as patient_router
+from auth_doctor import router as doctor_router
+from auth_ashaworker import router as ashaworker_router
 
-router = APIRouter(prefix="/asha", tags=["ASHA Worker"])
+app = FastAPI()
+
+# Include routers
+app.include_router(admin_router)
+app.include_router(patient_router)
+app.include_router(doctor_router)
+app.include_router(ashaworker_router)
+
+@app.get("/")
+def read_root():
+    return {"message": "Sehat Sathi API is running!"}
+
+# Connect to database
 conn = api.connect_to_database()
 
-# -------------------- Schemas --------------------
+# Role-to-table and column mapping
+role_table_map = {
+    "Patient": "Patient",
+    "Doctor": "Doctor",
+    "ASHAWorker": "ASHAWorker",
+    "Caregiver": "Caregiver",
+    "CallCenterOperator": "CallCenterOperator",
+    "HospitalStaff": "HospitalStaff",
+    "Admin": "Admin",
+    "NaiveUser": "NaiveUser"
+}
 
-class VisitNote(BaseModel):
-    asha_id: int
-    patient_id: int
-    notes: str
+role_column_map = {
+    "Patient": ("patient_id", "phone_patient"),
+    "Doctor": ("doctor_id", "phone_doctor"),
+    "ASHAWorker": ("asha_id", "phone_asha"),
+    "Caregiver": ("caregiver_id", "phone_caregiver"),
+    "CallCenterOperator": ("operator_id", "phone_operator"),
+    "HospitalStaff": ("staff_id", "phone_staff"),
+    "Admin": ("admin_id", "phone_admin"),
+    "NaiveUser": ("user_id", "phone_naive")
+}
 
-# -------------------- 1️⃣ Read Assigned Patients --------------------
+# Models
+class AuthRequest(BaseModel):
+    role_name: str
+    user_id: str
+    phone_number: str
 
-@router.get("/assigned/{asha_id}", response_model=List[Dict[str, Any]])
-def get_assigned_patients(asha_id: int):
-    try:
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT patient_id FROM ASHA_Assignments WHERE asha_id = ?",
-            (asha_id,)
-        )
-        patient_ids = [row[0] for row in cursor.fetchall()]
-        if not patient_ids:
-            return []
+# Authentication endpoint
+@app.post("/authenticate")
+def authenticate_user(auth: AuthRequest):
+    role_name = auth.role_name
+    user_id = auth.user_id
+    phone_number = auth.phone_number
 
-        placeholders = ",".join(["?"] * len(patient_ids))
-        query = f"SELECT * FROM Patient WHERE patient_id IN ({placeholders})"
-        cursor.execute(query, patient_ids)
-        rows = cursor.fetchall()
-        columns = [col[0] for col in cursor.description]
-        return [dict(zip(columns, row)) for row in rows]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching assigned patients: {str(e)}")
+    if role_name not in role_table_map or role_name not in role_column_map:
+        raise HTTPException(status_code=400, detail="Invalid role selected.")
 
-# -------------------- 2️⃣ Insert Visit Notes --------------------
+    table = role_table_map[role_name]
+    id_column, phone_column = role_column_map[role_name]
 
-@router.post("/visit-log")
-def insert_visit_log(data: VisitNote):
-    try:
-        cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO VisitLog (asha_id, patient_id, notes) VALUES (?, ?, ?)",
-            (data.asha_id, data.patient_id, data.notes)
-        )
-        conn.commit()
-        return {"status": "success", "message": "Visit note recorded."}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error inserting visit log: {str(e)}")
+    query = f"""
+        SELECT * FROM {table}
+        WHERE {id_column} = ? AND {phone_column} = ?
+    """
+    cursor = conn.cursor()
+    cursor.execute(query, (user_id, phone_number))
+    result = cursor.fetchone()
 
-# -------------------- 3️⃣ Access Medical History --------------------
+    if result:
+        return {"status": "success", "message": "Welcome back!", "role": role_name}
+    elif role_name == "NaiveUser":
+        return {"status": "new", "message": "Welcome! You’re new here."}
+    else:
+        raise HTTPException(status_code=401, detail="Invalid credentials.")
 
-@router.get("/medical-history/{patient_id}", response_model=Dict[str, Any])
-def get_medical_history(patient_id: int):
-    try:
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT urgency_level, medical_history FROM Patient WHERE patient_id = ?",
-            (patient_id,)
-        )
-        row = cursor.fetchone()
-        if not row:
-            raise HTTPException(status_code=404, detail="Patient not found.")
-        columns = [col[0] for col in cursor.description]
-        return dict(zip(columns, row))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching medical history: {str(e)}")
+# Utility endpoint to get column names
+@app.get("/columns")
+def get_columns(table_name: str = Query(...)):
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT TOP 1 * FROM {table_name}")
+    return [column[0] for column in cursor.description]
