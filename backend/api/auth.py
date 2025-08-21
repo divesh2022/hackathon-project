@@ -1,73 +1,72 @@
-# auth.py
-import api  # assumes api.connect_to_database() is defined
-from fastapi import FastAPI , HTTPException, Query
-from auth_admin import router as admin_router 
-from pydantic import BaseModel  
-from auth_patient import router as patient_router  
-from auth_doctor import router as doctor_router  
-app = FastAPI()
+# auth_ashaworker.py
 
-# Include admin routes
-app.include_router(admin_router)
-# Include patient routes
-app.include_router(patient_router)
-# Include doctor routes
-app.include_router(doctor_router)
-# Include other routers as needed
-@app.get("/")
-def read_root():
-    return {"message": "Sehat Sathi API is running!"}
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from typing import List, Dict, Any
+import api  # assumes api.connect_to_database() is defined
+
+router = APIRouter(prefix="/asha", tags=["ASHA Worker"])
 conn = api.connect_to_database()
 
-# Role-to-table mapping
-role_table_map = {
-    "Patient": "Patient",
-    "Doctor": "Doctor",
-    "ASHAWorker": "ASHAWorker",
-    "Caregiver": "Caregiver",
-    "CallCenterOperator": "CallCenterOperator",
-    "HospitalStaff": "HospitalStaff",
-    "Admin": "Admin",
-    "NaiveUser": "NaiveUser"
-}
-# Models
-class AuthRequest(BaseModel):
-    role_name: str
-    user_id: str
-    phone_number: str
+# -------------------- Schemas --------------------
 
-# Authentication endpoint
-@app.post("/authenticate")
-def authenticate_user(auth: AuthRequest):
-    role_name = auth.role_name
-    user_id = auth.user_id
-    phone_number = auth.phone_number
+class VisitNote(BaseModel):
+    asha_id: int
+    patient_id: int
+    notes: str
 
-    if role_name not in role_table_map:
-        raise HTTPException(status_code=400, detail="Invalid role selected.")
+# -------------------- 1️⃣ Read Assigned Patients --------------------
 
-    table = role_table_map[role_name]
-    id_column = f"{role_name.lower()}_id"
-    phone_column = "phone_" + role_name.lower()
+@router.get("/assigned/{asha_id}", response_model=List[Dict[str, Any]])
+def get_assigned_patients(asha_id: int):
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT patient_id FROM ASHA_Assignments WHERE asha_id = ?",
+            (asha_id,)
+        )
+        patient_ids = [row[0] for row in cursor.fetchall()]
+        if not patient_ids:
+            return []
 
-    query = f"""
-        SELECT * FROM {table}
-        WHERE {id_column} = ? AND {phone_column} = ?
-    """
-    cursor = conn.cursor()
-    cursor.execute(query, (user_id, phone_number))
-    result = cursor.fetchone()
+        placeholders = ",".join(["?"] * len(patient_ids))
+        query = f"SELECT * FROM Patient WHERE patient_id IN ({placeholders})"
+        cursor.execute(query, patient_ids)
+        rows = cursor.fetchall()
+        columns = [col[0] for col in cursor.description]
+        return [dict(zip(columns, row)) for row in rows]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching assigned patients: {str(e)}")
 
-    if result:
-        return {"status": "success", "message": "Welcome back!", "role": role_name}
-    elif role_name == "NaiveUser":
-        return {"status": "new", "message": "Welcome! You’re new here."}
-    else:
-        raise HTTPException(status_code=401, detail="Invalid credentials.")
+# -------------------- 2️⃣ Insert Visit Notes --------------------
 
-# Utility endpoint to get column names
-@app.get("/columns")
-def get_columns(table_name: str = Query(...)):
-    cursor = conn.cursor()
-    cursor.execute(f"SELECT TOP 1 * FROM {table_name}")
-    return [column[0] for column in cursor.description]
+@router.post("/visit-log")
+def insert_visit_log(data: VisitNote):
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO VisitLog (asha_id, patient_id, notes) VALUES (?, ?, ?)",
+            (data.asha_id, data.patient_id, data.notes)
+        )
+        conn.commit()
+        return {"status": "success", "message": "Visit note recorded."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error inserting visit log: {str(e)}")
+
+# -------------------- 3️⃣ Access Medical History --------------------
+
+@router.get("/medical-history/{patient_id}", response_model=Dict[str, Any])
+def get_medical_history(patient_id: int):
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT urgency_level, medical_history FROM Patient WHERE patient_id = ?",
+            (patient_id,)
+        )
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Patient not found.")
+        columns = [col[0] for col in cursor.description]
+        return dict(zip(columns, row))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching medical history: {str(e)}")
