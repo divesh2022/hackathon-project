@@ -1,143 +1,188 @@
+# user_dashboard.py
+
 import streamlit as st
 import requests
+import pandas as pd
+import api  # assumes api.connect_to_database() is defined
 
-st.set_page_config(page_title="Sehat Sathi Portal", page_icon="🩺")
+conn = api.connect_to_database()
+cursor = conn.cursor()
 
-# ============================
-# 🔐 Login Page
-# ============================
+st.set_page_config(page_title="Sehat Sathi Portal", layout="wide")
+st.title("🔐 Sehat Sathi Unified Login")
 
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
+# Session state for login
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
     st.session_state.role = None
     st.session_state.user_id = None
 
-if not st.session_state.logged_in:
-    st.title("🔐 Sehat Sathi Login")
-
-    role = st.selectbox("Select your role", [
-        "Admin", "Patient", "Doctor", "ASHAWorker", "Caregiver",
-        "CallCenterOperator", "HospitalStaff", "NaiveUser"
-    ])
-    user_id = st.text_input("Enter your User ID")
-    phone_number = st.text_input("Enter your Phone Number")
+# ============================
+# 🔐 Login Section
+# ============================
+if not st.session_state.authenticated:
+    role_name = st.selectbox("Role", ["Admin", "Doctor", "ASHAWorker", "HospitalStaff", "CallCenterOperator","Patient"])
+    user_id = st.text_input("User ID")
+    phone_number = st.text_input("Phone Number")
 
     if st.button("Login"):
-        if not user_id or not phone_number:
-            st.warning("Please fill in all fields.")
-        else:
-            payload = {
-                "role_name": role,
-                "user_id": user_id,
-                "phone_number": phone_number
-            }
-            try:
-                response = requests.post("http://localhost:8000/authenticate", json=payload)
-                if response.status_code == 200:
-                    data = response.json()
-                    if data["status"] in ["success", "new"]:
-                        st.session_state.logged_in = True
-                        st.session_state.role = data["role"]
-                        st.session_state.user_id = user_id
-                        st.success(data["message"])
-                        st.rerun()
-                    else:
-                        st.error("Unexpected response.")
-                else:
-                    st.error(response.json()["detail"])
-            except Exception as e:
-                st.error(f"Connection error: {e}")
+        payload = {
+            "role_name": role_name,
+            "user_id": user_id,
+            "phone_number": phone_number
+        }
+        try:
+            response = requests.post("http://localhost:8000/authenticate", json=payload)
+            result = response.json()
+            if result["status"] == "success":
+                st.session_state.authenticated = True
+                st.session_state.role = role_name
+                st.session_state.user_id = user_id
+                st.rerun()  # 🔁 Refresh to show dashboard
+            else:
+                st.error("❌ Invalid credentials.")
+        except Exception as e:
+            st.error(f"⚠️ Could not connect to backend: {e}")
+
+    # No need for st.stop() here — let the app continue
+    #st.stop()
 
 # ============================
-# 🧑‍⚕️ Role-Specific Panels
+# 🎯 Role-Based Dashboard
 # ============================
+role = st.session_state.role
+user_id = st.session_state.user_id
 
-else:
-    st.sidebar.success(f"Logged in as {st.session_state.role}")
-    st.sidebar.button("Logout", on_click=lambda: st.session_state.update({
-    "logged_in": False,
-    "role": None,
-    "user_id": None
-}))
-    st.sidebar.markdown("---")
+if role == "Admin":
+    st.header("🛠️ Admin Dashboard")
 
-    role = st.session_state.role
-    user_id = st.session_state.user_id
+    table_name = st.selectbox("Select a table", [
+        "Patient", "Doctor", "ASHAWorker", "Caregiver", "CallCenterOperator",
+        "HospitalStaff", "Admin", "NaiveUser", "Prescription", "Feedback", "AuditLog"
+    ])
+    operation = st.radio("Choose operation", ["Read", "Insert", "Update", "Delete"])
 
-    st.title(f"🩺 {role} Dashboard")
+    def get_columns(table):
+        cursor.execute(f"SELECT TOP 1 * FROM {table}")
+        return [column[0] for column in cursor.description]
 
-    if role == "Doctor":
-        st.subheader("Assigned Patients")
-        try:
-            res = requests.get(f"http://localhost:8000/doctor/patients/{user_id}")
-            st.json(res.json())
-        except:
-            st.error("Failed to fetch patient data.")
+    columns = get_columns(table_name)
 
-        st.subheader("Update Availability")
-        status = st.checkbox("Available")
-        if st.button("Update Status"):
-            requests.put("http://localhost:8000/doctor/availability", json={
-                "doctor_id": int(user_id),
-                "status": status
-            })
-            st.success("Availability updated.")
+    if operation == "Read":
+        st.subheader(f"📄 Viewing all records from `{table_name}`")
+        cursor.execute(f"SELECT * FROM {table_name}")
+        rows = cursor.fetchall()
+        df = pd.DataFrame.from_records(rows, columns=columns)
+        st.dataframe(df)
 
-    elif role == "ASHAWorker":
-        st.subheader("Assigned Patients")
-        try:
-            res = requests.get(f"http://localhost:8000/asha/patients/{user_id}")
-            st.json(res.json())
-        except:
-            st.error("Failed to fetch ASHA assignments.")
+    elif operation == "Insert":
+        st.subheader(f"➕ Insert into `{table_name}`")
+        data = {}
+        for col in columns:
+            data[col] = st.text_input(f"{col}", key=f"insert_{col}")
+        if st.button("Insert Record"):
+            keys = ', '.join(data.keys())
+            placeholders = ', '.join(['?'] * len(data))
+            values = tuple(data.values())
+            query = f"INSERT INTO {table_name} ({keys}) VALUES ({placeholders})"
+            cursor.execute(query, values)
+            conn.commit()
+            st.success("✅ Record inserted successfully.")
 
-    elif role == "Patient":
-        st.subheader("Your Record")
-        try:
-            res = requests.get(f"http://localhost:8000/patient/{user_id}")
-            st.json(res.json())
-        except:
-            st.error("Failed to fetch patient record.")
+    elif operation == "Update":
+        st.subheader(f"✏️ Update `{table_name}`")
+        condition = st.text_input("Enter WHERE condition (e.g., patient_id = 1)")
+        data = {}
+        for col in columns:
+            data[col] = st.text_input(f"New value for {col}", key=f"update_{col}")
+        if st.button("Update Record"):
+            set_clause = ', '.join([f"{k} = ?" for k in data.keys()])
+            values = tuple(data.values())
+            query = f"UPDATE {table_name} SET {set_clause} WHERE {condition}"
+            cursor.execute(query, values)
+            conn.commit()
+            st.success("✅ Record updated successfully.")
 
-        st.subheader("Submit Feedback")
+    elif operation == "Delete":
+        st.subheader(f"🗑️ Delete from `{table_name}`")
+        condition = st.text_input("Enter WHERE condition (e.g., doctor_id = 2)")
+        if st.button("Delete Record"):
+            query = f"DELETE FROM {table_name} WHERE {condition}"
+            cursor.execute(query)
+            conn.commit()
+            st.warning("⚠️ Record deleted.")
+
+elif role == "Doctor":
+    st.header("👨‍⚕️ Doctor Dashboard")
+    st.info("🚧 This section is under construction. Features like viewing assigned patients, updating availability, and submitting prescriptions will be added soon.")
+
+elif role == "ASHAWorker":
+    st.header("🧕 ASHA Worker Dashboard")
+    st.info("🚧 This section is under construction. Visit logging and patient tracking features will be added here.")
+
+elif role == "HospitalStaff":
+    st.header("🏥 Hospital Staff Dashboard")
+    st.info("🚧 Emergency logging and patient response tools will be added here.")
+
+elif role == "CallCenterOperator":
+    st.header("☎️ Call Center Operator Dashboard")
+    st.info("🚧 Naive user triage and SMS notification tools will be added here.")
+elif role == "Patient":
+    st.header("👤 Patient Dashboard")
+
+    BASE_URL = "http://localhost:8000"
+    patient_id = st.session_state.user_id
+    phone = st.text_input("📱 Confirm your Phone Number", value="")
+
+    if not phone:
+        st.warning("Please enter your phone number to view SMS notifications.")
+    else:
+        # 1️⃣ Patient Record
+        st.subheader("📄 Patient Record")
+        res = requests.get(f"{BASE_URL}/patient/{patient_id}")
+        st.json(res.json())
+
+        # 2️⃣ Feedback Submission
+        st.subheader("📝 Submit Feedback")
         rating = st.slider("Rate your experience", 1, 5)
         if st.button("Submit Feedback"):
-            requests.post("http://localhost:8000/patient/feedback", json={
-                "patient_id": int(user_id),
-                "rating": rating
-            })
-            st.success("Feedback submitted.")
+            feedback = {"patient_id": int(patient_id), "rating": rating}
+            res = requests.post(f"{BASE_URL}/patient/feedback", json=feedback)
+            st.success(res.json()["message"])
 
-    elif role == "CallCenterOperator":
-        st.subheader("Naive User Symptoms")
-        try:
-            res = requests.get("http://localhost:8000/operator/naive-users")
-            st.json(res.json())
-        except:
-            st.error("Failed to fetch NaiveUser data.")
+        # 3️⃣ SMS Notifications
+        st.subheader("📲 SMS Notifications")
+        res = requests.get(f"{BASE_URL}/patient/sms/{phone}")
+        st.json(res.json())
 
-    elif role == "HospitalStaff":
-        st.subheader("Hospital Patient Data")
-        try:
-            res = requests.get(f"http://localhost:8000/hospital/patients/{user_id}")
-            st.json(res.json())
-        except:
-            st.error("Failed to fetch hospital patient data.")
+        # 4️⃣ Prescription Summary
+        st.subheader("💊 Prescription Summary")
+        res = requests.get(f"{BASE_URL}/patient/prescriptions/{patient_id}")
+        st.json(res.json())
 
-    elif role == "Caregiver":
-        st.subheader("Assigned Patients")
-        try:
-            res = requests.get(f"http://localhost:8000/caregiver/patients/{user_id}")
-            st.json(res.json())
-        except:
-            st.error("Failed to fetch caregiver data.")
+        # 5️⃣ Assigned Doctor Details
+        st.subheader("👨‍⚕️ Assigned Doctor")
+        res = requests.get(f"{BASE_URL}/patient/doctor/{patient_id}")
+        st.json(res.json())
 
-    elif role == "NaiveUser":
-        st.subheader("Welcome New User")
-        st.info("Your symptoms will be recorded by a CallCenter Operator shortly.")
+        # 6️⃣ Health Summary
+        st.subheader("🧠 Health Summary")
+        res = requests.get(f"{BASE_URL}/patient/health-summary/{patient_id}")
+        st.json(res.json())
 
-    elif role == "Admin":
-        st.subheader("Admin Panel")
-        st.info("Use external tools or APIs to manage database records.")
+        # 7️⃣ Hospital Details
+        st.subheader("🏥 Hospital Staff Assigned")
+        res = requests.get(f"{BASE_URL}/patient/hospital/{patient_id}")
+        st.json(res.json())
 
-# ============================
+        # 8️⃣ AI Response Log
+        st.subheader("🤖 AI Diagnosis Log")
+        res = requests.get(f"{BASE_URL}/patient/ai-response/{patient_id}")
+        st.json(res.json())
+
+else:
+    st.error("❌ Unknown role. Please contact system administrator.")
+
+
+
+
