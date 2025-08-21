@@ -114,7 +114,53 @@ if role == "Admin":
 
 elif role == "Doctor":
     st.header("👨‍⚕️ Doctor Dashboard")
-    st.info("🚧 This section is under construction. Features like viewing assigned patients, updating availability, and submitting prescriptions will be added soon.")
+
+    BASE_URL = "http://localhost:8000"
+    doctor_id = st.session_state.user_id
+
+    # 1️⃣ Assigned Patients
+    st.subheader("🧍 Assigned Patients")
+    res = requests.get(f"{BASE_URL}/doctor/assigned/{doctor_id}")
+    if res.ok:
+        patients = res.json()
+        st.write(f"Total Assigned: {len(patients)}")
+        st.dataframe(patients)
+    else:
+        st.error("Failed to fetch assigned patients")
+
+    # 2️⃣ Dashboard Analytics
+    st.subheader("📊 Dashboard Analytics")
+    res = requests.get(f"{BASE_URL}/doctor/dashboard/{doctor_id}")
+    if res.ok:
+        data = res.json()
+        st.metric("Patients Treated", data["patients_treated"])
+        avg = data["average_feedback"]
+        st.metric("Average Feedback", round(avg, 2) if avg else "N/A")
+        st.write("Urgency Logs")
+        st.json(data["urgency_logs"])
+    else:
+        st.error("Failed to fetch dashboard data")
+
+    # 3️⃣ Risk Alerts
+    st.subheader("⚠️ Risk Alerts")
+    res = requests.get(f"{BASE_URL}/doctor/risk-alerts/{doctor_id}")
+    if res.ok:
+        alerts = res.json()["risk_patients"]
+        if alerts:
+            st.warning(f"Patients with Red/Yellow alerts: {alerts}")
+        else:
+            st.success("No urgent cases detected")
+    else:
+        st.error("Failed to fetch risk alerts")
+
+    # 4️⃣ AI Diagnosis History
+    st.subheader("🤖 AI Diagnosis History")
+    res = requests.get(f"{BASE_URL}/doctor/ai-diagnosis/{doctor_id}")
+    if res.ok:
+        st.json(res.json())
+    else:
+        st.error("Failed to fetch AI diagnosis data")
+
 
 elif role == "ASHAWorker":
     st.header("🧕 ASHA Worker Dashboard")
