@@ -1,12 +1,12 @@
-# hackathon-project
-# 📞 Hackathon 2.0 — AI-Powered Rural Health Helpline
+# Sehat Sathi
+#  Hackathon 2.0 — AI-Powered Rural Health Helpline
 
-## 🧠 Overview
+##  Overview
 Hackathon 2.0 proposes a toll-free, AI-assisted health helpline designed to serve rural populations with minimal infrastructure. The system combines voice-based symptom intake, urgency classification, and human escalation to deliver scalable, accessible healthcare.
 
 ---
 
-## 🚀 Core Features
+##  Core Features
 - **Toll-Free Access**: No internet or smartphone required.
 - **AI Assistant**: Collects symptoms, classifies urgency (Blue, Yellow, Red).
 - **Human Escalation**: ASHA workers or doctors intervene for serious cases.
@@ -17,7 +17,7 @@ Hackathon 2.0 proposes a toll-free, AI-assisted health helpline designed to serv
 
 ---
 
-## ✅ Benefits
+##  Benefits
 - Reduces hospital overload
 - Enables early disease detection
 - Supports emergency alerts
@@ -26,7 +26,7 @@ Hackathon 2.0 proposes a toll-free, AI-assisted health helpline designed to serv
 
 ---
 
-## ⚠️ Challenges
+##  Challenges
 - Risk of AI misclassification
 - Data privacy compliance
 - Infrastructure gaps (ambulance, doctor availability)
@@ -35,7 +35,7 @@ Hackathon 2.0 proposes a toll-free, AI-assisted health helpline designed to serv
 
 ---
 
-## 🧩 AI Components
+##  AI Components
 - Voice-to-text symptom capture
 - Symptom severity classifier
 - Image recognition for skin issues
@@ -44,7 +44,7 @@ Hackathon 2.0 proposes a toll-free, AI-assisted health helpline designed to serv
 
 ---
 
-## 🏗️ Infrastructure
+##  Infrastructure
 - Toll-free setup via BSNL
 - Backend server for AI + call routing
 - Doctor dashboard for escalated cases
@@ -52,14 +52,14 @@ Hackathon 2.0 proposes a toll-free, AI-assisted health helpline designed to serv
 
 ---
 
-## 📊 Data & Training
+##  Data & Training
 - Medical symptom datasets
 - Multilingual AI models
 - Option to use prebuilt APIs
 
 ---
 
-## 🆚 Competitive Landscape
+##  Competitive Landscape
 
 | Platform         | Strengths                          | Limitations                          |
 |------------------|-------------------------------------|--------------------------------------|
@@ -69,7 +69,7 @@ Hackathon 2.0 proposes a toll-free, AI-assisted health helpline designed to serv
 
 ---
 
-## 💡 Suggested Add-ons
+##  Suggested Add-ons
 - Rotating voice hygiene tips
 - SMS alerts for outbreaks
 - Medication reminders
@@ -78,5 +78,5 @@ Hackathon 2.0 proposes a toll-free, AI-assisted health helpline designed to serv
 
 ---
 
-## 👥 Contributors
+##  Contributors
 - **Atharav** & **Divesh** — System design, stakeholder feedback, and backend modeling
